@@ -1,18 +1,17 @@
 # AI Report Factory
 
-**Automated Insight Generation and Analytical Storytelling System**  
-Transform your data into executive-ready reports that explain *what happened, why it happened, and what to do next.*
+**Automated Insight Generation and Analytical Storytelling System** Transform your data into executive-ready reports that explain *what happened, why it happened, and what to do next.*
 
 ---
 
 ## Project Goal & Real-World Applications
 
-The **AI Report Factory** is designed to automate **data storytelling and reporting workflows** for modern analytics teams, startups, and enterprises.  
-Its purpose is to bridge the gap between *data presentation* and *business understanding*, turning rows of numbers into clear, narrative-driven insights.
+The **AI Report Factory** is designed to automate **data storytelling and reporting workflows** for modern analytics teams, startups, and enterprises. Its purpose is to bridge the gap between *data presentation* and *business understanding*, turning rows of numbers into clear, narrative-driven insights.
 
 ### Real-World Use Cases
+
 - **Startups:** Automated monthly investor or product reports.  
-- **Data Teams:** KPI and trend visualization without manual Excel or BI setup.  
+- **Data Teams:** **KPI** and trend visualization without manual Excel or BI setup.  
 - **Enterprises:** Recurring operational performance summaries with executive narratives.  
 - **Consultants:** Automated client reporting templates ready for Slack or email distribution.
 
@@ -22,8 +21,8 @@ By merging data analytics, visualization, and storytelling, AI Report Factory he
 
 ## Overview
 
-AI Report Factory processes structured data, analyzes it for business insights, and produces professional **Markdown** and **HTML reports** that include:
-- Executive KPI summaries  
+AI Report Factory processes structured data, analyzes it for business insights, and produces professional **Markdown** and ****HTML** reports** that include:
+- Executive **KPI** summaries  
 - Visual trend analysis  
 - Category, channel, and geography breakdowns  
 - Clear narrative explanations accompanying every visualization
@@ -66,7 +65,8 @@ These KPIs provide a top-down understanding of company health, guiding where to 
 ## Analytical Storytelling: Data Insights
 
 ### Revenue & Profit Over Time
-<img width="960" height="720" alt="timeseries" src="https://github.com/user-attachments/assets/e8f9edc2-7c19-4013-8cc8-916a3a2af1fd" />
+
+<img width=*960* height=*720* alt=*timeseries* src="[https://github.com/user-attachments/assets/e8f9edc2-7c19-**4013**-8cc8-916a3a2af1fd"](https://github.com/user-attachments/assets/e8f9edc2-7c19-**4013**-8cc8-916a3a2af1fd") />
 
 Tracks monthly revenue and profit, showing both scale and efficiency trends.  
 - **Observation:** Noticeable growth in Q2 and Q4, typical of seasonal promotions or product launches.  
@@ -76,7 +76,8 @@ Tracks monthly revenue and profit, showing both scale and efficiency trends.
 ---
 
 ### Revenue by Category
-<img width="960" height="720" alt="category" src="https://github.com/user-attachments/assets/91baf8cc-aaf6-43fb-9122-1b1324b33e2d" />
+
+<img width=*960* height=*720* alt=*category* src="[https://github.com/user-attachments/assets/91baf8cc-aaf6-43fb-**9122**-1b1324b33e2d"](https://github.com/user-attachments/assets/91baf8cc-aaf6-43fb-**9122**-1b1324b33e2d") />
 
 Breaks down revenue by product category to identify top performers.  
 - **Observation:** *Electronics* dominates, followed by *Home* and *Sports*.  
@@ -86,7 +87,8 @@ Breaks down revenue by product category to identify top performers.
 ---
 
 ### Channel Revenue Share
-<img width="960" height="720" alt="channel" src="https://github.com/user-attachments/assets/8b75a543-7a76-4a2f-9ba5-9ecbc34ae3b7" />
+
+<img width=*960* height=*720* alt=*channel* src="[https://github.com/user-attachments/assets/8b75a543-7a76-4a2f-9ba5-9ecbc34ae3b7"](https://github.com/user-attachments/assets/8b75a543-7a76-4a2f-9ba5-9ecbc34ae3b7") />
 
 Illustrates revenue share across Web, Mobile App, Retail, and Marketplace.  
 - **Observation:** Web holds the largest share (~45%), but mobile channels show rapid growth.  
@@ -96,7 +98,8 @@ Illustrates revenue share across Web, Mobile App, Retail, and Marketplace.
 ---
 
 ### Top Cities by Revenue
-<img width="960" height="720" alt="geo" src="https://github.com/user-attachments/assets/94856355-112a-48de-8477-b22a72992139" />
+
+<img width=*960* height=*720* alt=*geo* src="[https://github.com/user-attachments/assets/**94856355**-112a-48de-**8477**-b22a72992139"](https://github.com/user-attachments/assets/**94856355**-112a-48de-**8477**-b22a72992139") />
 
 Ranks top-performing cities by total sales volume.  
 - **Observation:** Major global markets (Berlin, London, New York) lead, followed by emerging cities like Mumbai.  
@@ -107,10 +110,10 @@ Ranks top-performing cities by total sales volume.
 
 ## How It Works, End-to-End Workflow
 
-1. **Data Loading** → Reads CSV or API data and performs basic validation.  
+1. **Data Loading** → Reads **CSV** or **API** data and performs basic validation.  
 2. **Processing** → Computes KPIs, time-based aggregates, and category/channel splits.  
 3. **Visualization** → Generates static charts (`.png`) in `output/assets/`.  
-4. **Report Rendering** → Populates Markdown (`report.md`) and HTML (`report.html`) templates.  
+4. **Report Rendering** → Populates Markdown (`report.md`) and **HTML** (`report.html`) templates.  
 5. **Distribution** → Ready for Slack, email, or other publishing integrations.
 
 This workflow automates reporting cycles from hours of manual work into a single command-line execution.
@@ -119,48 +122,7 @@ This workflow automates reporting cycles from hours of manual work into a single
 
 ## Project Structure
 
-```
-ai_report_factory/
-│
-├── __init__.py              # Initializes package
-│
-├── reporting.py             # Loads and preprocesses raw data
-│                            # Adds derived metrics like profit, order_month
-│
-├── analysis.py              # Core KPI computations and aggregations
-│                            # Includes time-series, category, channel, and geo summaries
-│
-├── charts.py                # Creates static visualizations (Matplotlib)
-│                            # Functions: save_timeseries_chart, save_category_chart, etc.
-│
-├── renderer.py              # Jinja2-based Markdown and HTML report generator
-│
-├── pipeline.py              # Main orchestration layer, calls reporting, analysis, charts, renderer
-│
-├── templates/               # Jinja2 templates for rendering
-│   ├── report.md.j2         # Markdown layout for report.md
-│   └── report.html.j2       # HTML layout for report.html
-│
-├── publisher/               # Ready for extensions: Slack, Email, Medium integrations
-│   ├── emailer.py           # SMTP email sender stub
-│   ├── slacker.py           # Slack webhook stub
-│   └── medium.py            # Medium publishing stub (placeholder)
-│
-├── data/                    # Input data folder
-│   └── orders.csv           # Sample synthetic e-commerce dataset
-│
-├── output/                  # Generated results folder
-│   ├── report.md            # Text-based report output
-│   ├── report.html          # Styled HTML report output
-│   └── assets/              # Visualization exports
-│       ├── timeseries.png
-│       ├── category.png
-│       ├── channel.png
-│       └── geo.png
-│
-├── run_demo.py              # Demo runner script to execute full pipeline
-└── requirements.txt         # Python dependencies
-```
+``` ai_report_factory/ │ ├── __init__.py              # Initializes package │ ├── reporting.py             # Loads and preprocesses raw data │                            # Adds derived metrics like profit, order_month │ ├── analysis.py              # Core **KPI** computations and aggregations │                            # Includes time-series, category, channel, and geo summaries │ ├── charts.py                # Creates static visualizations (Matplotlib) │                            # Functions: save_timeseries_chart, save_category_chart, etc. │ ├── renderer.py              # Jinja2-based Markdown and **HTML** report generator │ ├── pipeline.py              # Main orchestration layer, calls reporting, analysis, charts, renderer │ ├── templates/               # Jinja2 templates for rendering │   ├── report.md.j2         # Markdown layout for report.md │   └── report.html.j2       # **HTML** layout for report.html │ ├── publisher/               # Ready for extensions: Slack, Email, Medium integrations │   ├── emailer.py           # **SMTP** email sender stub │   ├── slacker.py           # Slack webhook stub │   └── medium.py            # Medium publishing stub (placeholder) │ ├── data/                    # Input data folder │   └── orders.csv           # Sample synthetic e-commerce dataset │ ├── output/                  # Generated results folder │   ├── report.md            # Text-based report output │   ├── report.html          # Styled **HTML** report output │   └── assets/              # Visualization exports │       ├── timeseries.png │       ├── category.png │       ├── channel.png │       └── geo.png │ ├── run_demo.py              # Demo runner script to execute full pipeline └── requirements.txt         # Python dependencies ```
 
 ---
 
@@ -189,8 +151,4 @@ This modular design allows easy scaling from a simple Python script into a full 
 
 ## Summary Insight
 
-AI Report Factory demonstrates how analytics can evolve from **static reporting** to **dynamic storytelling**.  
-By merging data processing, visualization, and interpretation, it empowers teams to **understand their data faster** and **communicate insights more effectively**.  
-Every chart and metric becomes a part of a larger story, one that guides strategic action.
-#   C o n t r o l - L o o p - P e r f o r m a n c e - M o n i t o r i n g  
- 
+AI Report Factory demonstrates how analytics can evolve from **static reporting** to **dynamic storytelling**. By merging data processing, visualization, and interpretation, it empowers teams to **understand their data faster** and **communicate insights more effectively**. Every chart and metric becomes a part of a larger story, one that guides strategic action. #

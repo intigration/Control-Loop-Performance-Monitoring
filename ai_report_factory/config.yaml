@@ -1,0 +1,9 @@
+project_name: "AI Report Factory"
+company: "DemoCo"
+currency: "$"
+report:
+  title: "Monthly Commerce Performance Report"
+  author: "AI Report Factory"
+  logo_path: ""
+schedule:
+  cron: "@monthly"

@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>CLPM Monitoring Station</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;700&display=swap');
+  :root {
+    --bg0:#080e18; --bg1:#0d1626; --bg2:#111e30; --bg3:#162440;
+    --amber:#f5a623; --amber2:#ffc764; --cyan:#00d4e8; --green:#39e87a;
+    --red:#ff4b4b; --yellow:#ffe566; --purple:#a78bfa;
+    --text:#c8d8f0; --dim:#5a7099; --border:#1e3050;
+    --rA:#f5a623; --rB:#00d4e8; --rC:#a78bfa;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg0);color:var(--text);font-family:'Exo 2',sans-serif;font-size:13px;min-height:100vh;}
+  /* SCANLINE OVERLAY */
+  body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.08) 2px,rgba(0,0,0,.08) 4px);pointer-events:none;z-index:9999;}
+
+  /* TOP BAR */
+  header{background:var(--bg1);border-bottom:1px solid var(--border);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:52px;position:sticky;top:0;z-index:100;}
+  .logo{font-family:'Share Tech Mono',monospace;font-size:16px;color:var(--amber);letter-spacing:.12em;display:flex;align-items:center;gap:10px;}
+  .logo-dot{width:8px;height:8px;background:var(--amber);border-radius:50%;animation:pulse 2s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 6px var(--amber);}50%{opacity:.4;box-shadow:none;}}
+  .header-meta{display:flex;gap:24px;align-items:center;}
+  .meta-item{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--dim);}
+  .meta-item span{color:var(--cyan);}
+  .status-pill{padding:3px 10px;border-radius:3px;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:.08em;}
+  .status-live{background:rgba(57,232,122,.12);color:var(--green);border:1px solid rgba(57,232,122,.3);}
+
+  /* LAYOUT */
+  .main{padding:16px 20px;display:flex;flex-direction:column;gap:16px;}
+  .section-title{font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+  .section-title::after{content:'';flex:1;height:1px;background:var(--border);}
+
+  /* SCORECARD GRID */
+  .scorecard-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;}
+  .score-card{background:var(--bg1);border:1px solid var(--border);border-radius:6px;padding:12px 14px;position:relative;overflow:hidden;cursor:pointer;transition:border-color .2s;}
+  .score-card:hover{border-color:var(--amber);}
+  .score-card.active{border-color:var(--amber);background:var(--bg2);}
+  .score-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+  .score-card.good::before{background:var(--green);}
+  .score-card.warn::before{background:var(--yellow);}
+  .score-card.poor::before{background:var(--red);}
+  .sc-tag{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--cyan);margin-bottom:4px;}
+  .sc-type{font-size:10px;color:var(--dim);margin-bottom:8px;}
+  .sc-health{font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:.1em;margin-bottom:10px;}
+  .sc-health.good{color:var(--green);}
+  .sc-health.warn{color:var(--yellow);}
+  .sc-health.poor{color:var(--red);}
+  .sc-metrics{display:flex;flex-direction:column;gap:4px;}
+  .sc-metric{display:flex;justify-content:space-between;align-items:center;}
+  .sc-metric-label{font-size:10px;color:var(--dim);}
+  .sc-metric-val{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text);}
+  .sc-metric-val.highlight{color:var(--amber);}
+  .mode-bar{height:4px;border-radius:2px;background:var(--bg3);margin-top:8px;overflow:hidden;}
+  .mode-bar-fill{height:100%;border-radius:2px;transition:width .5s;}
+  .mode-bar-fill.auto{background:var(--green);}
+  .mode-bar-fill.manual{background:var(--red);}
+
+  /* MAIN CHARTS ROW */
+  .charts-row{display:grid;grid-template-columns:2fr 1fr;gap:16px;}
+  .chart-panel{background:var(--bg1);border:1px solid var(--border);border-radius:6px;padding:16px;}
+  .chart-panel-title{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--amber);letter-spacing:.1em;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;}
+  .chart-panel-title .tag-badge{font-size:10px;padding:2px 8px;border-radius:2px;background:rgba(245,166,35,.12);border:1px solid rgba(245,166,35,.25);}
+  canvas{max-height:220px;}
+
+  /* RECIPE SECTION */
+  .recipe-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
+  .recipe-panel{background:var(--bg1);border:1px solid var(--border);border-radius:6px;padding:16px;}
+  .recipe-header{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+  .recipe-badge{width:10px;height:10px;border-radius:2px;}
+  .recipe-badge.rA{background:var(--rA);}
+  .recipe-badge.rB{background:var(--rB);}
+  .recipe-badge.rC{background:var(--rC);}
+  .recipe-name{font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--text);}
+  .recipe-sp{font-size:10px;color:var(--dim);}
+  .recipe-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
+  .rstat{background:var(--bg2);border-radius:4px;padding:8px 10px;}
+  .rstat-label{font-size:10px;color:var(--dim);margin-bottom:3px;}
+  .rstat-val{font-family:'Share Tech Mono',monospace;font-size:14px;color:var(--text);}
+  .rstat-unit{font-size:9px;color:var(--dim);margin-left:2px;}
+  .limit-bar-wrap{margin-top:4px;}
+  .limit-bar-label{display:flex;justify-content:space-between;font-size:10px;color:var(--dim);margin-bottom:4px;}
+  .limit-bar-track{height:6px;border-radius:3px;background:var(--bg3);overflow:hidden;}
+  .limit-bar-track .fill{height:100%;border-radius:3px;}
+
+  /* BOTTOM ROW */
+  .bottom-row{display:grid;grid-template-columns:3fr 2fr;gap:16px;}
+
+  /* MODE PIE */
+  .mode-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+  .mode-card{background:var(--bg2);border-radius:5px;padding:10px 12px;text-align:center;}
+  .mode-card-tag{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--cyan);margin-bottom:6px;}
+  .mode-donut-wrap{position:relative;width:60px;height:60px;margin:0 auto 6px;}
+  .mode-pct{font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--text);}
+  .mode-label{font-size:10px;color:var(--dim);}
+
+  /* ALERTS TABLE */
+  .alert-table{width:100%;border-collapse:collapse;}
+  .alert-table th{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--dim);text-align:left;padding:4px 8px;border-bottom:1px solid var(--border);letter-spacing:.08em;}
+  .alert-table td{padding:6px 8px;border-bottom:1px solid rgba(30,48,80,.5);font-size:11px;}
+  .alert-table tr:last-child td{border-bottom:none;}
+  .alert-sev{font-family:'Share Tech Mono',monospace;font-size:10px;padding:1px 6px;border-radius:2px;}
+  .sev-warn{background:rgba(255,229,102,.1);color:var(--yellow);border:1px solid rgba(255,229,102,.25);}
+  .sev-crit{background:rgba(255,75,75,.1);color:var(--red);border:1px solid rgba(255,75,75,.25);}
+  .sev-info{background:rgba(0,212,232,.1);color:var(--cyan);border:1px solid rgba(0,212,232,.25);}
+
+  /* TABS */
+  .tab-row{display:flex;gap:4px;margin-bottom:14px;}
+  .tab-btn{font-family:'Share Tech Mono',monospace;font-size:10px;padding:4px 12px;border:1px solid var(--border);background:none;color:var(--dim);cursor:pointer;border-radius:3px;letter-spacing:.08em;transition:all .15s;}
+  .tab-btn:hover{color:var(--text);border-color:var(--amber);}
+  .tab-btn.active{background:rgba(245,166,35,.12);color:var(--amber);border-color:rgba(245,166,35,.4);}
+
+  /* TOOLTIP */
+  .chart-tooltip{font-family:'Share Tech Mono',monospace;font-size:11px;}
+
+  /* SUPERSET INFO */
+  .superset-box{background:var(--bg1);border:1px solid var(--border);border-radius:6px;padding:16px;}
+  .ss-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+  .ss-card{background:var(--bg2);border-radius:5px;padding:12px;}
+  .ss-icon{width:24px;height:24px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:14px;margin-bottom:8px;}
+  .ss-title{font-size:11px;color:var(--text);font-weight:600;margin-bottom:4px;}
+  .ss-desc{font-size:10px;color:var(--dim);line-height:1.5;}
+  .ss-query{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--cyan);background:var(--bg0);border-radius:3px;padding:6px 8px;margin-top:6px;white-space:pre;overflow-x:auto;}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-dot"></div>
+    ▣ CLPM MONITORING STATION
+  </div>
+  <div class="header-meta">
+    <div class="meta-item">DATASET <span>2018-05-01 → 2018-06-14</span></div>
+    <div class="meta-item">CONTROLLERS <span>7</span></div>
+    <div class="meta-item">SAMPLES <span>126,721</span></div>
+    <div class="meta-item">WINDOW <span>1h / 30s raw</span></div>
+    <div class="status-pill status-live">● READY</div>
+  </div>
+</header>
+
+<div class="main">
+
+<!-- SCORECARD -->
+<div>
+  <div class="section-title">Controller Health Scorecard</div>
+  <div class="scorecard-grid" id="scorecardGrid"></div>
+</div>
+
+<!-- METRIC TREND + RECIPE TIME SERIES -->
+<div class="charts-row">
+  <div class="chart-panel">
+    <div class="chart-panel-title">
+      <span>Metric Trend — Daily Average</span>
+      <div style="display:flex;gap:6px;">
+        <div class="tab-row" id="metricTabs">
+          <button class="tab-btn active" data-metric="aae">AAE</button>
+          <button class="tab-btn" data-metric="co_travel">CO Travel</button>
+          <button class="tab-btn" data-metric="pct_auto">% Auto</button>
+          <button class="tab-btn" data-metric="osc">Oscillation</button>
+        </div>
+      </div>
+    </div>
+    <canvas id="trendChart"></canvas>
+  </div>
+  <div class="chart-panel">
+    <div class="chart-panel-title">
+      <span>PIC-002 — Recipe Comparison</span>
+      <span class="tag-badge">PIC-002.PV</span>
+    </div>
+    <div class="tab-row" id="recipeTabs">
+      <button class="tab-btn active" data-rmetric="aae">AAE</button>
+      <button class="tab-btn" data-rmetric="co_travel">CO Travel</button>
+      <button class="tab-btn" data-rmetric="pv_std">PV Std Dev</button>
+    </div>
+    <canvas id="recipeChart"></canvas>
+  </div>
+</div>
+
+<!-- RECIPE CARDS -->
+<div>
+  <div class="section-title">PIC-002 — Recipe-Based Condition Limits (3σ)</div>
+  <div class="recipe-row" id="recipeLimitCards"></div>
+</div>
+
+<!-- BOTTOM ROW -->
+<div class="bottom-row">
+  <div class="chart-panel">
+    <div class="chart-panel-title">Controller Mode Distribution</div>
+    <div class="mode-grid" id="modeGrid"></div>
+  </div>
+  <div class="chart-panel">
+    <div class="chart-panel-title">Active Alerts & Observations</div>
+    <table class="alert-table" id="alertTable">
+      <thead><tr><th>SEV</th><th>CONTROLLER</th><th>OBSERVATION</th></tr></thead>
+      <tbody id="alertBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- SUPERSET SETUP GUIDE -->
+<div>
+  <div class="section-title">Apache Superset — Setup & SQL Queries</div>
+  <div class="superset-box">
+    <div class="ss-grid">
+      <div class="ss-card">
+        <div class="ss-icon" style="background:rgba(245,166,35,.15);">📦</div>
+        <div class="ss-title">1 · Connect Database</div>
+        <div class="ss-desc">Add the SQLite database (clpm.db) as a datasource in Superset via Settings → Database Connections → SQLite.</div>
+        <div class="ss-query">sqlite:////path/to/clpm.db</div>
+      </div>
+      <div class="ss-card">
+        <div class="ss-icon" style="background:rgba(0,212,232,.15);">📊</div>
+        <div class="ss-title">2 · Scorecard Chart</div>
+        <div class="ss-desc">Use Big Number with Trendline chart type on clpm_metrics table. Filter by controller.</div>
+        <div class="ss-query">SELECT controller, AVG(aae) as avg_aae,
+  AVG(co_travel) as avg_co_travel,
+  AVG(pct_auto) as pct_auto
+FROM clpm_metrics
+GROUP BY controller</div>
+      </div>
+      <div class="ss-card">
+        <div class="ss-icon" style="background:rgba(167,139,250,.15);">📈</div>
+        <div class="ss-title">3 · Recipe Trend Chart</div>
+        <div class="ss-desc">Line chart on clpm_metrics filtered to PIC-002. Use recipe as color dimension for condition-based limits.</div>
+        <div class="ss-query">SELECT timestamp, recipe,
+  aae, co_travel, pv_std
+FROM clpm_metrics
+WHERE controller = 'PIC-002'
+ORDER BY timestamp</div>
+      </div>
+      <div class="ss-card">
+        <div class="ss-icon" style="background:rgba(57,232,122,.15);">🎯</div>
+        <div class="ss-title">4 · Limit Breach Detection</div>
+        <div class="ss-desc">Join clpm_metrics with recipe_limits. Flag when AAE exceeds recipe-specific limit. Use for Value Search equivalent.</div>
+        <div class="ss-query">SELECT m.timestamp, m.controller,
+  m.recipe, m.aae, l.aae_limit,
+  CASE WHEN m.aae > l.aae_limit
+    THEN 'BREACH' ELSE 'OK' END as status
+FROM clpm_metrics m
+JOIN recipe_limits l
+  ON m.controller=l.controller
+  AND m.recipe=l.recipe</div>
+      </div>
+      <div class="ss-card">
+        <div class="ss-icon" style="background:rgba(255,75,75,.15);">⚠️</div>
+        <div class="ss-title">5 · Mode Monitoring</div>
+        <div class="ss-desc">Mixed Bar + Line chart. Show % time in Auto/Cascade mode over time. Alert when pct_auto drops below 95%.</div>
+        <div class="ss-query">SELECT DATE(timestamp) as day,
+  controller,
+  AVG(pct_auto) as pct_auto,
+  dominant_mode
+FROM clpm_metrics
+GROUP BY day, controller
+HAVING pct_auto < 95
+ORDER BY day</div>
+      </div>
+      <div class="ss-card">
+        <div class="ss-icon" style="background:rgba(255,198,100,.15);">🔄</div>
+        <div class="ss-title">6 · CO Travel Heatmap</div>
+        <div class="ss-desc">Use Heatmap chart with controller on Y-axis, date on X-axis, co_travel as value. Spot valve wear periods instantly.</div>
+        <div class="ss-query">SELECT DATE(timestamp) as day,
+  controller,
+  AVG(co_travel) as daily_co_travel
+FROM clpm_metrics
+GROUP BY day, controller
+ORDER BY day, controller</div>
+      </div>
+    </div>
+    <div style="margin-top:12px;padding:10px 12px;background:var(--bg2);border-radius:4px;font-size:11px;color:var(--dim);">
+      <span style="color:var(--amber);font-family:'Share Tech Mono',monospace;">NOTE:</span> 
+      Export files available: <span style="color:var(--cyan);font-family:'Share Tech Mono',monospace;">clpm_metrics.csv</span>, 
+      <span style="color:var(--cyan);font-family:'Share Tech Mono',monospace;">recipe_limits.csv</span>, 
+      <span style="color:var(--cyan);font-family:'Share Tech Mono',monospace;">clpm.db</span> — 
+      Upload CSVs directly to Superset as datasets if SQLite connection is unavailable.
+      Current off-the-shelf CLPM tools lack recipe/mode-based condition analysis — this station fills that gap.
+    </div>
+  </div>
+</div>
+
+</div><!-- /main -->
+
+<script>
+const DATA = {"daily": [{"date": "2018-05-01", "controller": "FIC-008", "controller_type": "Flow", "aae": 0.235, "co_travel": 18.975, "pct_auto": 100.0, "osc": 18.6, "pv_std": 0.822}, {"date": "2018-05-01", "controller": "FIC-020", "controller_type": "Flow", "aae": 0.189, "co_travel": 0.417, "pct_auto": 100.0, "osc": 7.6, "pv_std": 0.017}, {"date": "2018-05-01", "controller": "PIC-001", "controller_type": "Pressure", "aae": 0.764, "co_travel": 15.918, "pct_auto": 100.0, "osc": 32.65, "pv_std": 0.921}, {"date": "2018-05-01", "controller": "PIC-002", "controller_type": "Pressure", "aae": 1.119, "co_travel": 120.669, "pct_auto": 100.0, "osc": 48.35, "pv_std": 1.273}, {"date": "2018-05-01", "controller": "TIC-001", "controller_type": "Temperature", "aae": 0.248, "co_travel": 0.809, "pct_auto": 100.0, "osc": 10.05, "pv_std": 0.032}, {"date": "2018-05-01", "controller": "TIC-002", "controller_type": "Temperature", "aae": 0.512, "co_travel": 10.149, "pct_auto": 100.0, "osc": 9.45, "pv_std": 0.545}, {"date": "2018-05-01", "controller": "TIC-012", "controller_type": "Temperature", "aae": 0.026, "co_travel": 4.162, "pct_auto": 100.0, "osc": 61.65, "pv_std": 0.03}, {"date": "2018-05-02", "controller": "FIC-008", "controller_type": "Flow", "aae": 0.205, "co_travel": 16.56, "pct_auto": 100.0, "osc": 18.292, "pv_std": 0.813}, {"date": "2018-05-02", "controller": "FIC-020", "controller_type": "Flow", "aae": 0.059, "co_travel": 0.412, "pct_auto": 100.0, "osc": 10.417, "pv_std": 0.017}, {"date": "2018-05-02", "controller": "PIC-001", "controller_type": "Pressure", "aae": 0.773, "co_travel": 15.755, "pct_auto": 100.0, "osc": 33.25, "pv_std": 0.928}, {"date": "2018-05-02", "controller": "PIC-002", "controller_type": "Pressure", "aae": 1.165, "co_travel": 117.095, "pct_auto": 100.0, "osc": 47.458, "pv_std": 1.304}, {"date": "2018-05-02", "controller": "TIC-001", "controller_type": "Temperature", "aae": 0.369, "co_travel": 0.837, "pct_auto": 100.0, "osc": 8.708, "pv_std": 0.036}, {"date": "2018-05-02", "controller": "TIC-002", "controller_type": "Temperature", "aae": 0.538, "co_travel": 10.191, "pct_auto": 100.0, "osc": 9.458, "pv_std": 0.56}, {"date": "2018-05-02", "controller": "TIC-012", "controller_type": "Temperature", "aae": 0.029, "co_travel": 4.367, "pct_auto": 100.0, "osc": 58.167, "pv_std": 0.039}, {"date": "2018-05-03", "controller": "FIC-008", "controller_type": "Flow", "aae": 0.22, "co_travel": 17.79, "pct_auto": 100.0, "osc": 17.833, "pv_std": 0.822}, {"date": "2018-05-03", "controller": "FIC-020", "controller_type": "Flow", "aae": 0.137, "co_travel": 0.406, "pct_auto": 100.0, "osc": 10.083, "pv_std": 0.017}, {"date": "2018-05-03", "controller": "PIC-001", "controller_type": "Pressure", "aae": 0.725, "co_travel": 14.227, "pct_auto": 100.0, "osc": 30.042, "pv_std": 0.873}, {"date": "2018-05-03", "controller": "PIC-002", "controller_type": "Pressure", "aae": 1.11, "co_travel": 121.369, "pct_auto": 100.0, "osc": 46.25, "pv_std": 1.267}, {"date": "2018-05-03", "controller": "TIC-001", "controller_type": "Temperature", "aae": 0.545, "co_travel": 0.838, "pct_auto": 100.0, "osc": 9.125, "pv_std": 0.036}, {"date": "2018-05-03", "controller": "TIC-002", "controller_type": "Temperature", "aae": 0.523, "co_travel": 9.861, "pct_auto": 100.0, "osc": 9.292, "pv_std": 0.541}, {"date": "2018-05-03", "controller": "TIC-012", "controller_type": "Temperature", "aae": 0.026, "co_travel": 4.162, "pct_auto": 100.0, "osc": 59.167, "pv_std": 0.03}, {"date": "2018-05-04", "controller": "FIC-008", "controller_type": "Flow", "aae": 0.205, "co_travel": 16.576, "pct_auto": 100.0, "osc": 17.458, "pv_std": 0.815}, {"date": "2018-05-04", "controller": "FIC-020", "controller_type": "Flow", "aae": 0.079, "co_travel": 0.419, "pct_auto": 100.0, "osc": 10.833, "pv_std": 0.016}, {"date": "2018-05-04", "controller": "PIC-001", "controller_type": "Pressure", "aae": 0.77, "co_travel": 14.998, "pct_auto": 100.0, "osc": 30.75, "pv_std": 0.927}, {"date": "2018-05-04", "controller": "PIC-002", "controller_type": "Pressure", "aae": 1.149, "co_travel": 118.165, "pct_auto": 100.0, "osc": 46.833, "pv_std": 1.313}, {"date": "2018-05-04", "controller": "TIC-001", "controller_type": "Temperature", "aae": 0.889, "co_travel": 0.821, "pct_auto": 100.0, "osc": 9.25, "pv_std": 0.037}, {"date": "2018-05-04", "controller": "TIC-002", "controller_type": "Temperature", "aae": 0.498, "co_travel": 10.043, "pct_auto": 100.0, "osc": 10.208, "pv_std": 0.519}, {"date": "2018-05-04", "controller": "TIC-012", "controller_type": "Temperature", "aae": 0.033, "co_travel": 4.428, "pct_auto": 100.0, "osc": 54.958, "pv_std": 0.061}, {"date": "2018-05-05", "controller": "FIC-008", "controller_type": "Flow", "aae": 0.222, "co_travel": 17.94, "pct_auto": 100.0, "osc": 18.583, "pv_std": 0.825}, {"date": "2018-05-05", "controller": "FIC-020", "controller_type": "Flow", "aae": 0.239, "co_travel": 0.43, "pct_auto": 100.0, "osc": 12.792, "pv_std": 0.015}, {"date": "2018-05-05", "controller": "PIC-001", "controller_type": "Pressure", "aae": 0.751, "co_travel": 15.916, "pct_auto": 100.0, "osc": 32.875, "pv_std": 0.904}, {"date": "2018-05-05", "controller": "PIC-002", "controller_type": "Pressure", "aae": 1.139, "co_travel": 121.908, "pct_auto": 100.0, "osc": 48.25, "pv_std": 1.304}, {"date": "2018-05-05", "controller": "TIC-001", "controller_type": "Temperature", "aae": 0.634, "co_travel": 0.852, "pct_auto": 100.0, "osc": 8.458, "pv_std": 0.037}, {"date": "2018-05-05", "controller": "TIC-002", "controller_type": "Temperature", "aae": 0.526, "co_travel": 10.179, "pct_auto": 100.0, "osc": 9.583, "pv_std": 0.555}, {"date": "2018-05-05", "controller": "TIC-012", "controller_type": "Temperature", "aae": 0.03, "co_travel": 4.326, "pct_auto": 100.0, "osc": 55.625, "pv_std": 0.047}, {"date": "2018-05-06", "controller": "FIC-008", "controller_type": "Flow", "aae": 0.205, "co_travel": 16.534, "pct_auto": 100.0, "osc": 18.0, "pv_std": 0.814}, {"date": "2018-05-06", "controller": "FIC-020", "controller_type": "Flow", "aae": 0.226, "co_travel": 0.422, "pct_auto": 100.0, "osc": 10.875, "pv_std": 0.018}, {"date": "2018-05-06", "controller": "PIC-001", "controller_type": "Pressure", "aae": 0.773, "co_travel": 15.81, "pct_auto": 100.0, "osc": 32.958, "pv_std": 0.927}, {"date": "2018-05-06", "controller": "PIC-002", "controller_type": "Pressure", "aae": 1.149, "co_travel": 120.549, "pct_auto": 100.0, "osc": 48.167, "pv_std": 1.311}, {"date": "2018-05-06", "controller": "TIC-001", "controller_type": "Temperature", "aae": 0.293, "co_travel": 0.828, "pct_auto": 100.0, "osc": 10.0, "pv_std": 0.034}, {"date": "2018-05-06", "controller": "TIC-002", "controller_type": "Temperature", "aae": 0.532, "co_travel": 9.894, "pct_auto": 100.0, "osc": 9.0, "pv_std": 0.556}, {"date": "2018-05-06", "controller": "TIC-012", "controller_type": "Temperature", "aae": 0.029, "co_travel": 4.277, "pct_auto": 100.0, "osc": 57.333, "pv_std": 0.043}, {"date": "2018-05-13", "controller": "TIC-001", "controller_type": "Temperature", "aae": 0.88, "co_travel": 0.617, "pct_auto": 59.271, "osc": 10.625, "pv_std": 0.068}, {"date": "2018-05-14", "controller": "FIC-020", "controller_type": "Flow", "aae": 2.952, "co_travel": 0.506, "pct_auto": 100.0, "osc": 9.292, "pv_std": 0.1}, {"date": "2018-05-14", "controller": "PIC-002", "controller_type": "Pressure", "aae": 1.354, "co_travel": 165.953, "pct_auto": 100.0, "osc": 52.458, "pv_std": 1.57}, {"date": "2018-05-14", "controller": "TIC-001", "controller_type": "Temperature", "aae": 1.68, "co_travel": 0.0, "pct_auto": 0.0, "osc": 9.875, "pv_std": 0.04}, {"date": "2018-05-15", "controller": "PIC-002", "controller_type": "Pressure", "aae": 1.452, "co_travel": 198.321, "pct_auto": 100.0, "osc": 55.708, "pv_std": 1.713}, {"date": "2018-05-15", "controller": "TIC-001", "controller_type": "Temperature", "aae": 1.215, "co_travel": 0.0, "pct_auto": 0.0, "osc": 11.0, "pv_std": 0.035}, {"date": "2018-05-20", "controller": "TIC-001", "controller_type": "Temperature", "aae": 3.455, "co_travel": 0.0, "pct_auto": 0.0, "osc": 9.208, "pv_std": 0.039}, {"date": "2018-05-28", "controller": "PIC-002", "controller_type": "Pressure", "aae": 1.634, "co_travel": 227.621, "pct_auto": 100.0, "osc": 53.25, "pv_std": 1.935}, {"date": "2018-05-29", "controller": "PIC-002", "controller_type": "Pressure", "aae": 1.857, "co_travel": 282.538, "pct_auto": 100.0, "osc": 55.958, "pv_std": 2.238}, {"date": "2018-06-02", "controller": "TIC-012", "controller_type": "Temperature", "aae": 0.106, "co_travel": 7.495, "pct_auto": 100.0, "osc": 55.542, "pv_std": 0.406}, {"date": "2018-06-10", "controller": "PIC-002", "controller_type": "Pressure", "aae": 1.969, "co_travel": 281.784, "pct_auto": 100.0, "osc": 54.625, "pv_std": 2.344}, {"date": "2018-06-14", "controller": "PIC-002", "controller_type": "Pressure", "aae": 1.841, "co_travel": 289.607, "pct_auto": 100.0, "osc": 56.5, "pv_std": 2.248}],
+"pic002_recipe": [{"date": "2018-05-01", "recipe": "Recipe A", "aae": 1.119, "co_travel": 120.669, "pv_std": 1.273, "osc": 48.35}, {"date": "2018-05-02", "recipe": "Recipe A", "aae": 1.165, "co_travel": 117.095, "pv_std": 1.304, "osc": 47.458}, {"date": "2018-05-03", "recipe": "Recipe A", "aae": 1.11, "co_travel": 121.369, "pv_std": 1.267, "osc": 46.25}, {"date": "2018-05-04", "recipe": "Recipe A", "aae": 1.149, "co_travel": 118.165, "pv_std": 1.313, "osc": 46.833}, {"date": "2018-05-05", "recipe": "Recipe A", "aae": 1.139, "co_travel": 121.908, "pv_std": 1.304, "osc": 48.25}, {"date": "2018-05-06", "recipe": "Recipe A", "aae": 1.149, "co_travel": 120.549, "pv_std": 1.311, "osc": 48.167}, {"date": "2018-05-07", "recipe": "Recipe A", "aae": 1.095, "co_travel": 120.25, "pv_std": 1.258, "osc": 47.625}, {"date": "2018-05-08", "recipe": "Recipe A", "aae": 1.169, "co_travel": 123.008, "pv_std": 1.317, "osc": 47.167}, {"date": "2018-05-09", "recipe": "Recipe A", "aae": 1.11, "co_travel": 117.805, "pv_std": 1.272, "osc": 48.625}, {"date": "2018-05-10", "recipe": "Recipe A", "aae": 1.162, "co_travel": 121.456, "pv_std": 1.306, "osc": 47.333}, {"date": "2018-05-11", "recipe": "Recipe A", "aae": 1.111, "co_travel": 118.68, "pv_std": 1.28, "osc": 48.208}, {"date": "2018-05-12", "recipe": "Recipe A", "aae": 1.171, "co_travel": 119.577, "pv_std": 1.325, "osc": 47.833}, {"date": "2018-05-13", "recipe": "Recipe A", "aae": 1.145, "co_travel": 119.615, "pv_std": 1.292, "osc": 49.833}, {"date": "2018-05-14", "recipe": "Recipe A", "aae": 1.194, "co_travel": 121.207, "pv_std": 1.342, "osc": 49.2}, {"date": "2018-05-14", "recipe": "Recipe B", "aae": 1.469, "co_travel": 197.915, "pv_std": 1.732, "osc": 54.786}, {"date": "2018-05-15", "recipe": "Recipe B", "aae": 1.452, "co_travel": 198.321, "pv_std": 1.713, "osc": 55.708}, {"date": "2018-05-16", "recipe": "Recipe B", "aae": 1.535, "co_travel": 198.8, "pv_std": 1.777, "osc": 53.0}, {"date": "2018-05-17", "recipe": "Recipe B", "aae": 1.476, "co_travel": 197.34, "pv_std": 1.767, "osc": 54.333}, {"date": "2018-05-18", "recipe": "Recipe B", "aae": 1.462, "co_travel": 193.323, "pv_std": 1.715, "osc": 53.083}, {"date": "2018-05-19", "recipe": "Recipe B", "aae": 1.426, "co_travel": 199.467, "pv_std": 1.694, "osc": 54.25}, {"date": "2018-05-20", "recipe": "Recipe B", "aae": 1.487, "co_travel": 189.287, "pv_std": 1.736, "osc": 53.875}, {"date": "2018-05-21", "recipe": "Recipe B", "aae": 1.444, "co_travel": 194.387, "pv_std": 1.713, "osc": 55.417}, {"date": "2018-05-22", "recipe": "Recipe B", "aae": 1.458, "co_travel": 197.415, "pv_std": 1.72, "osc": 52.083}, {"date": "2018-05-23", "recipe": "Recipe B", "aae": 1.456, "co_travel": 198.676, "pv_std": 1.728, "osc": 53.042}, {"date": "2018-05-24", "recipe": "Recipe B", "aae": 1.484, "co_travel": 202.157, "pv_std": 1.742, "osc": 53.292}, {"date": "2018-05-25", "recipe": "Recipe B", "aae": 1.436, "co_travel": 199.545, "pv_std": 1.707, "osc": 53.417}, {"date": "2018-05-26", "recipe": "Recipe B", "aae": 1.5, "co_travel": 200.884, "pv_std": 1.75, "osc": 52.917}, {"date": "2018-05-27", "recipe": "Recipe B", "aae": 1.462, "co_travel": 198.214, "pv_std": 1.733, "osc": 52.75}, {"date": "2018-05-28", "recipe": "Recipe B", "aae": 1.501, "co_travel": 196.156, "pv_std": 1.754, "osc": 52.857}, {"date": "2018-05-28", "recipe": "Recipe C", "aae": 1.82, "co_travel": 271.672, "pv_std": 2.188, "osc": 53.8}, {"date": "2018-05-29", "recipe": "Recipe C", "aae": 1.857, "co_travel": 282.538, "pv_std": 2.238, "osc": 55.958}, {"date": "2018-05-30", "recipe": "Recipe C", "aae": 1.884, "co_travel": 273.617, "pv_std": 2.279, "osc": 56.083}, {"date": "2018-05-31", "recipe": "Recipe C", "aae": 1.866, "co_travel": 275.054, "pv_std": 2.249, "osc": 55.083}, {"date": "2018-06-01", "recipe": "Recipe C", "aae": 1.84, "co_travel": 276.549, "pv_std": 2.237, "osc": 57.083}, {"date": "2018-06-02", "recipe": "Recipe C", "aae": 1.884, "co_travel": 275.96, "pv_std": 2.262, "osc": 58.583}, {"date": "2018-06-03", "recipe": "Recipe C", "aae": 1.931, "co_travel": 285.012, "pv_std": 2.3, "osc": 55.167}, {"date": "2018-06-04", "recipe": "Recipe C", "aae": 1.875, "co_travel": 276.433, "pv_std": 2.247, "osc": 54.917}, {"date": "2018-06-05", "recipe": "Recipe C", "aae": 1.845, "co_travel": 277.283, "pv_std": 2.219, "osc": 56.583}, {"date": "2018-06-06", "recipe": "Recipe C", "aae": 1.88, "co_travel": 285.665, "pv_std": 2.273, "osc": 55.417}, {"date": "2018-06-07", "recipe": "Recipe C", "aae": 1.889, "co_travel": 280.717, "pv_std": 2.264, "osc": 57.0}, {"date": "2018-06-08", "recipe": "Recipe C", "aae": 1.88, "co_travel": 284.716, "pv_std": 2.251, "osc": 55.083}, {"date": "2018-06-09", "recipe": "Recipe C", "aae": 1.887, "co_travel": 276.512, "pv_std": 2.262, "osc": 55.125}, {"date": "2018-06-10", "recipe": "Recipe C", "aae": 1.969, "co_travel": 281.784, "pv_std": 2.344, "osc": 54.625}, {"date": "2018-06-11", "recipe": "Recipe C", "aae": 1.859, "co_travel": 283.287, "pv_std": 2.239, "osc": 55.583}, {"date": "2018-06-12", "recipe": "Recipe C", "aae": 1.928, "co_travel": 283.226, "pv_std": 2.304, "osc": 54.292}, {"date": "2018-06-13", "recipe": "Recipe C", "aae": 1.863, "co_travel": 277.113, "pv_std": 2.236, "osc": 58.5}, {"date": "2018-06-14", "recipe": "Recipe C", "aae": 1.841, "co_travel": 289.607, "pv_std": 2.248, "osc": 56.5}],
+"mode_hours": [{"controller": "FIC-008", "dominant_mode": "Cascade", "hours": 1056}, {"controller": "FIC-020", "dominant_mode": "Auto", "hours": 1056}, {"controller": "PIC-001", "dominant_mode": "Auto", "hours": 1056}, {"controller": "PIC-002", "dominant_mode": "Auto", "hours": 1056}, {"controller": "TIC-001", "dominant_mode": "Auto", "hours": 298}, {"controller": "TIC-001", "dominant_mode": "Manual", "hours": 758}, {"controller": "TIC-002", "dominant_mode": "Auto", "hours": 1056}, {"controller": "TIC-012", "dominant_mode": "Auto", "hours": 1056}],
+"limits": [{"controller": "PIC-002", "controller_type": "Pressure", "recipe": "Recipe A", "pv_limit_lo": 0.8098, "pv_limit_hi": 8.7078, "pv_mean": 4.7588, "pv_std": 1.3163, "aae_limit": 1.3163, "co_travel_limit": 121.1107}, {"controller": "PIC-002", "controller_type": "Pressure", "recipe": "Recipe B", "pv_limit_lo": 0.2525, "pv_limit_hi": 10.7404, "pv_mean": 5.4964, "pv_std": 1.748, "aae_limit": 1.748, "co_travel_limit": 199.043}, {"controller": "PIC-002", "controller_type": "Pressure", "recipe": "Recipe C", "pv_limit_lo": -0.5792, "pv_limit_hi": 13.0587, "pv_mean": 6.2397, "pv_std": 2.273, "aae_limit": 2.273, "co_travel_limit": 281.9255}],
+"scorecard": [{"controller": "FIC-008", "controller_type": "Flow", "avg_aae": 0.213, "avg_co_travel": 23.202, "avg_pct_auto": 100.0, "avg_osc": 18.146, "avg_pv_std": 0.831, "health": "GOOD"}, {"controller": "FIC-020", "controller_type": "Flow", "avg_aae": 7.008, "avg_co_travel": 0.133, "avg_pct_auto": 100.0, "avg_osc": 9.308, "avg_pv_std": 0.01, "health": "WARN"}, {"controller": "PIC-001", "controller_type": "Pressure", "avg_aae": 0.759, "avg_co_travel": 15.531, "avg_pct_auto": 100.0, "avg_osc": 32.196, "avg_pv_std": 0.913, "health": "GOOD"}, {"controller": "PIC-002", "controller_type": "Pressure", "avg_aae": 1.525, "avg_co_travel": 205.117, "avg_pct_auto": 100.0, "avg_osc": 52.756, "avg_pv_std": 1.8, "health": "GOOD"}, {"controller": "TIC-001", "controller_type": "Temperature", "avg_aae": 3.143, "avg_co_travel": 0.238, "avg_pct_auto": 28.241, "avg_osc": 9.366, "avg_pv_std": 0.036, "health": "POOR"}, {"controller": "TIC-002", "controller_type": "Temperature", "avg_aae": 0.696, "avg_co_travel": 11.483, "avg_pct_auto": 100.0, "avg_osc": 7.626, "avg_pv_std": 0.739, "health": "GOOD"}, {"controller": "TIC-012", "controller_type": "Temperature", "avg_aae": 0.036, "avg_co_travel": 4.596, "avg_pct_auto": 100.0, "avg_osc": 58.188, "avg_pv_std": 0.075, "health": "GOOD"}]
+};
+
+const CTRL_COLORS = {
+  'FIC-008':'#f5a623','FIC-020':'#ffc764','PIC-001':'#00d4e8','PIC-002':'#00a8c0',
+  'TIC-001':'#ff4b4b','TIC-002':'#a78bfa','TIC-012':'#39e87a'
+};
+const RECIPE_COLORS = {'Recipe A':'#f5a623','Recipe B':'#00d4e8','Recipe C':'#a78bfa'};
+const METRIC_LABELS = {aae:'AAE (Avg Absolute Error)',co_travel:'CO Travel (%/hr)',pct_auto:'% Time in Auto/Cascade',osc:'Oscillation Index'};
+
+// ─── SCORECARD ───────────────────────────────────────────────────────────────
+function buildScorecard(){
+  const el = document.getElementById('scorecardGrid');
+  DATA.scorecard.forEach(s=>{
+    const h = s.health.toLowerCase();
+    const pct = s.avg_pct_auto.toFixed(1);
+    el.innerHTML += `
+    <div class="score-card ${h}" id="sc-${s.controller}">
+      <div class="sc-tag">${s.controller}</div>
+      <div class="sc-type">${s.controller_type.toUpperCase()}</div>
+      <div class="sc-health ${h}">◆ ${s.health}</div>
+      <div class="sc-metrics">
+        <div class="sc-metric"><span class="sc-metric-label">Avg AAE</span><span class="sc-metric-val ${h==='poor'?'highlight':''}">${s.avg_aae.toFixed(3)}</span></div>
+        <div class="sc-metric"><span class="sc-metric-label">CO Travel</span><span class="sc-metric-val">${s.avg_co_travel.toFixed(1)}</span></div>
+        <div class="sc-metric"><span class="sc-metric-label">Osc Index</span><span class="sc-metric-val">${s.avg_osc.toFixed(1)}</span></div>
+      </div>
+      <div class="mode-bar" title="${pct}% Auto">
+        <div class="mode-bar-fill ${s.avg_pct_auto>90?'auto':'manual'}" style="width:${pct}%"></div>
+      </div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--dim);margin-top:3px;">${pct}% AUTO</div>
+    </div>`;
+  });
+}
+
+// ─── TREND CHART ─────────────────────────────────────────────────────────────
+let trendChart;
+function buildTrend(metric='aae'){
+  const ctx = document.getElementById('trendChart').getContext('2d');
+  const dates = [...new Set(DATA.daily.map(d=>d.date))].sort();
+  const controllers = [...new Set(DATA.daily.map(d=>d.controller))];
+
+  const datasets = controllers.map(c=>{
+    const map = {};
+    DATA.daily.filter(d=>d.controller===c).forEach(d=>map[d.date]=d[metric]);
+    return {
+      label: c,
+      data: dates.map(d=>map[d]??null),
+      borderColor: CTRL_COLORS[c]||'#888',
+      backgroundColor: 'transparent',
+      borderWidth: 1.5,
+      tension: 0.3,
+      pointRadius: 0,
+      spanGaps: false,
+    };
+  });
+
+  const cfg = {
+    type:'line',
+    data:{labels:dates, datasets},
+    options:{
+      responsive:true, maintainAspectRatio:true,
+      animation:{duration:300},
+      plugins:{
+        legend:{labels:{color:'#5a7099',font:{family:"'Share Tech Mono',monospace",size:10},boxWidth:14,padding:12}},
+        tooltip:{backgroundColor:'#0d1626',borderColor:'#1e3050',borderWidth:1,titleColor:'#c8d8f0',bodyColor:'#5a7099',titleFont:{family:"'Share Tech Mono',monospace",size:11}}
+      },
+      scales:{
+        x:{ticks:{color:'#5a7099',font:{size:9,family:"'Share Tech Mono',monospace"},maxRotation:0,maxTicksLimit:10},grid:{color:'rgba(30,48,80,.4)'}},
+        y:{ticks:{color:'#5a7099',font:{size:9,family:"'Share Tech Mono',monospace"}},grid:{color:'rgba(30,48,80,.4)'},title:{display:true,text:METRIC_LABELS[metric],color:'#5a7099',font:{size:9}}}
+      }
+    }
+  };
+  if(trendChart) trendChart.destroy();
+  trendChart = new Chart(ctx, cfg);
+}
+
+// ─── RECIPE CHART ────────────────────────────────────────────────────────────
+let recipeChart;
+function buildRecipeChart(metric='aae'){
+  const ctx = document.getElementById('recipeChart').getContext('2d');
+  const recipes = ['Recipe A','Recipe B','Recipe C'];
+  const datasets = recipes.map(r=>{
+    const items = DATA.pic002_recipe.filter(d=>d.recipe===r);
+    return {
+      label: r,
+      data: items.map(d=>({x:d.date,y:d[metric]})),
+      borderColor: RECIPE_COLORS[r],
+      backgroundColor: 'transparent',
+      borderWidth: 2,
+      tension: 0.2,
+      pointRadius: 0,
+    };
+  });
+
+  // Add limits
+  const limitLines = {aae:{A:1.3163,B:1.748,C:2.273},co_travel:{A:121.1,B:199.0,C:281.9},pv_std:{A:1.3163,B:1.748,C:2.273}};
+  if(limitLines[metric]){
+    recipes.forEach(r=>{
+      const key = r.slice(-1);
+      const items = DATA.pic002_recipe.filter(d=>d.recipe===r);
+      datasets.push({
+        label:`Limit ${r}`,
+        data: items.map(d=>({x:d.date,y:limitLines[metric][key]})),
+        borderColor: RECIPE_COLORS[r],
+        borderDash:[4,4],
+        borderWidth:1,
+        pointRadius:0,
+        backgroundColor:'transparent',
+      });
+    });
+  }
+
+  const cfg = {
+    type:'line',
+    data:{datasets},
+    options:{
+      responsive:true,maintainAspectRatio:true,
+      animation:{duration:300},
+      plugins:{
+        legend:{labels:{color:'#5a7099',font:{family:"'Share Tech Mono',monospace",size:9},boxWidth:10,padding:8,filter:i=>!i.text.startsWith('Limit')}},
+        tooltip:{backgroundColor:'#0d1626',borderColor:'#1e3050',borderWidth:1,titleColor:'#c8d8f0',bodyColor:'#5a7099'}
+      },
+      scales:{
+        x:{type:'category',ticks:{color:'#5a7099',font:{size:8,family:"'Share Tech Mono',monospace"},maxTicksLimit:6},grid:{color:'rgba(30,48,80,.4)'}},
+        y:{ticks:{color:'#5a7099',font:{size:9,family:"'Share Tech Mono',monospace"}},grid:{color:'rgba(30,48,80,.4)'}}
+      }
+    }
+  };
+  if(recipeChart) recipeChart.destroy();
+  recipeChart = new Chart(ctx, cfg);
+}
+
+// ─── RECIPE LIMIT CARDS ───────────────────────────────────────────────────────
+function buildRecipeLimitCards(){
+  const el = document.getElementById('recipeLimitCards');
+  const recipeInfo = {
+    'Recipe A':{cls:'rA',sp:'SP = 4.25 bar'},
+    'Recipe B':{cls:'rB',sp:'SP = 5.00 bar'},
+    'Recipe C':{cls:'rC',sp:'SP = 5.75 bar'},
+  };
+  DATA.limits.forEach(lim=>{
+    const info = recipeInfo[lim.recipe];
+    const r = lim.recipe.slice(-1);
+    el.innerHTML += `
+    <div class="recipe-panel">
+      <div class="recipe-header">
+        <div class="recipe-badge ${info.cls}"></div>
+        <div><div class="recipe-name">PIC-002 — ${lim.recipe}</div><div class="recipe-sp">${info.sp}</div></div>
+      </div>
+      <div class="recipe-stats">
+        <div class="rstat">
+          <div class="rstat-label">PV Mean</div>
+          <div class="rstat-val">${lim.pv_mean.toFixed(2)}<span class="rstat-unit">bar</span></div>
+        </div>
+        <div class="rstat">
+          <div class="rstat-label">PV Std Dev</div>
+          <div class="rstat-val">${lim.pv_std.toFixed(3)}</div>
+        </div>
+        <div class="rstat">
+          <div class="rstat-label">AAE Limit (1σ)</div>
+          <div class="rstat-val">${lim.aae_limit.toFixed(3)}</div>
+        </div>
+        <div class="rstat">
+          <div class="rstat-label">CO Travel Lim</div>
+          <div class="rstat-val">${lim.co_travel_limit.toFixed(1)}<span class="rstat-unit">%/hr</span></div>
+        </div>
+      </div>
+      <div class="limit-bar-wrap">
+        <div class="limit-bar-label"><span>PV Operating Range (3σ)</span><span>[${lim.pv_limit_lo.toFixed(2)}, ${lim.pv_limit_hi.toFixed(2)}]</span></div>
+        <div class="limit-bar-track">
+          <div class="fill" style="width:${Math.min(100,(lim.pv_mean/15)*100)}%;background:${info.cls==='rA'?'var(--rA)':info.cls==='rB'?'var(--rB)':'var(--rC)'}"></div>
+        </div>
+      </div>
+    </div>`;
+  });
+}
+
+// ─── MODE GRID ───────────────────────────────────────────────────────────────
+function buildModeGrid(){
+  const el = document.getElementById('modeGrid');
+  const ctrlMap = {};
+  DATA.mode_hours.forEach(m=>{
+    if(!ctrlMap[m.controller]) ctrlMap[m.controller]={};
+    ctrlMap[m.controller][m.dominant_mode] = m.hours;
+  });
+  Object.entries(ctrlMap).forEach(([ctrl,modes])=>{
+    const total = Object.values(modes).reduce((a,b)=>a+b,0);
+    const auto = modes['Auto']||modes['Cascade']||0;
+    const autoModes = (modes['Auto']||0)+(modes['Cascade']||0);
+    const pct = ((autoModes/total)*100).toFixed(1);
+    const color = pct>=95?'var(--green)':pct>=50?'var(--yellow)':'var(--red)';
+    el.innerHTML += `
+    <div class="mode-card">
+      <div class="mode-card-tag">${ctrl}</div>
+      <div style="position:relative;width:56px;height:56px;margin:0 auto 6px;">
+        <svg viewBox="0 0 56 56" style="transform:rotate(-90deg)">
+          <circle cx="28" cy="28" r="22" fill="none" stroke="var(--bg3)" stroke-width="8"/>
+          <circle cx="28" cy="28" r="22" fill="none" stroke="${color}" stroke-width="8"
+            stroke-dasharray="${(pct/100)*138.2} 138.2" stroke-linecap="round"/>
+        </svg>
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'Share Tech Mono',monospace;font-size:11px;color:${color}">${pct}%</div>
+      </div>
+      <div class="mode-label" style="color:${color}">AUTO/CAS</div>
+    </div>`;
+  });
+}
+
+// ─── ALERTS ──────────────────────────────────────────────────────────────────
+function buildAlerts(){
+  const alerts = [
+    {sev:'CRIT', ctrl:'TIC-001', msg:'71.8% of time in Manual mode. Loop effectively open.'},
+    {sev:'WARN', ctrl:'FIC-020', msg:'High AAE (avg 7.0) — SP offset or stuck at SP=47 vs 60.'},
+    {sev:'WARN', ctrl:'PIC-002', msg:'CO Travel triples Recipe A→C (121→282 %/hr). Valve wear risk.'},
+    {sev:'INFO', ctrl:'PIC-002', msg:'Recipe A→B transition: AAE +32%, CO Travel +65%. Recipe limits required.'},
+    {sev:'INFO', ctrl:'TIC-012', msg:'Oscillation Index highest of all controllers (avg 58). Normal for fast loop.'},
+    {sev:'INFO', ctrl:'PIC-001', msg:'Stable across all recipes. AAE consistent at 0.76. No action needed.'},
+  ];
+  const tbody = document.getElementById('alertBody');
+  const sevClass = {CRIT:'sev-crit',WARN:'sev-warn',INFO:'sev-info'};
+  alerts.forEach(a=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><span class="alert-sev ${sevClass[a.sev]}">${a.sev}</span></td><td style="font-family:'Share Tech Mono',monospace;color:var(--cyan)">${a.ctrl}</td><td style="color:var(--dim)">${a.msg}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ─── TABS ────────────────────────────────────────────────────────────────────
+document.querySelectorAll('#metricTabs .tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('#metricTabs .tab-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    buildTrend(btn.dataset.metric);
+  });
+});
+document.querySelectorAll('#recipeTabs .tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('#recipeTabs .tab-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    buildRecipeChart(btn.dataset.rmetric);
+  });
+});
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+Chart.defaults.color = '#5a7099';
+buildScorecard();
+buildTrend('aae');
+buildRecipeChart('aae');
+buildRecipeLimitCards();
+buildModeGrid();
+buildAlerts();
+</script>
+</body>
+</html>

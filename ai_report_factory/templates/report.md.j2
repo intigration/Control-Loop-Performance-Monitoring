@@ -1,0 +1,22 @@
+
+# Performance Report
+
+## Executive Summary
+- **Revenue:** ${{ '{:,.0f}'.format(kpis.revenue) }}
+- **Profit:** ${{ '{:,.0f}'.format(kpis.profit) }}
+- **Orders:** {{ '{:,}'.format(kpis.orders) }}
+- **Customers:** {{ '{:,}'.format(kpis.customers) }}
+- **AOV:** ${{ '{:,.2f}'.format(kpis.aov) }}
+- **Margin:** {{ '{:.1f}%'.format(kpis.margin*100) }}
+
+## Trends
+![Timeseries]({{ timeseries_img }})
+
+## Breakdown by Category
+![Category]({{ category_img }})
+
+## Channel Mix
+![Channel]({{ channel_img }})
+
+## Top Cities by Revenue
+![Geography]({{ geo_img }})
